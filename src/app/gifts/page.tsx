@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, FlaskConical, Gift as GiftIcon, KeyRound, LifeBuoy, Lock, ShieldX, XCircle } from "lucide-react";
-import { api, useApi, useMutation } from "@/shared/lib/api";
+import { api, useMutation, usePagedApi } from "@/shared/lib/api";
+import { PagedFooter } from "@/shared/ui/data";
 import { useSession } from "@/shared/lib/session";
 import { date, dateTime } from "@/shared/lib/format";
 import { Badge, Button, Card, cx, EmptyState, ErrorState, Field, Input, Notice, PageHeader, ProductArt, Spinner, Tabs } from "@/shared/ui/primitives";
@@ -22,17 +23,17 @@ const resultStyle: Record<VerifyResult["result"], { tone: "success" | "danger" |
 };
 
 export default function GiftsPage() {
-  const { data, error, loading, reload } = useApi<Gift[]>("/recipient/gifts");
   const [tab, setTab] = useState<"incoming" | "received">("incoming");
+  const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>("/recipient/gifts", { tab }, 10);
   if (loading) return <Spinner />;
-  if (error || !data) return <ErrorState error={error} onRetry={reload} />;
-  const incoming = data.filter((g) => !g.arrived);
-  const received = data.filter((g) => g.arrived);
+  if (error || !data || !items) return <ErrorState error={error} onRetry={reload} />;
+  const incoming = tab === "incoming" ? items : [];
+  const received = tab === "received" ? items : [];
 
   return (
     <>
       <PageHeader title="Your gifts" description="We keep surprises secret: no item, price or sender is shown until a gift arrives — and the sender only if they choose." />
-      <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: incoming.length }, { value: "received", label: "Received", count: received.length }]} />
+      <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data.counts?.incoming }, { value: "received", label: "Received", count: data.counts?.received }]} />
       {tab === "incoming" ? (
         incoming.length === 0 ? (
           <EmptyState icon={GiftIcon} title="Nothing on the way right now" description="When someone sends you a gift, you'll see it here — without spoilers." />
@@ -65,6 +66,7 @@ export default function GiftsPage() {
           ))}
         </ul>
       )}
+      <PagedFooter data={data} onPage={setPage} className="mt-4 rounded-2xl border bg-white" />
     </>
   );
 }

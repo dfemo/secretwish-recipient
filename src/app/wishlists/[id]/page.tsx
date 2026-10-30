@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, CalendarHeart, CheckCircle2, Copy, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
-import { api, useApi, useMutation } from "@/shared/lib/api";
+import { api, useApi, useMutation, type Paged } from "@/shared/lib/api";
+import { PagedFooter } from "@/shared/ui/data";
 import { useSession } from "@/shared/lib/session";
 import { date } from "@/shared/lib/format";
 import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, SearchInput, Select, Spinner, StatusBadge, Textarea } from "@/shared/ui/primitives";
@@ -157,7 +158,10 @@ function AddItemModal({ wishlistId, existing, onClose }: { wishlistId: string; e
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<CatalogProduct | null>(null);
   const [form, setForm] = useState({ priority: 2, notes: "", quantity: 1, category: "" });
-  const { data, loading } = useApi<CatalogProduct[]>(`/catalog/products?search=${encodeURIComponent(search)}`);
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [search]);
+  const { data: paged, loading } = useApi<Paged<CatalogProduct>>(`/catalog/products?search=${encodeURIComponent(search)}&page=${page}&pageSize=24`);
+  const data = paged?.items;
   const { fmt } = useSession();
   const toast = useToast();
   const add = useMutation(() => api(`/recipient/wishlists/${wishlistId}/items`, { method: "POST", body: { productId: picked!.id, ...form } }));
@@ -196,6 +200,7 @@ function AddItemModal({ wishlistId, existing, onClose }: { wishlistId: string; e
               );
             })}
           </ul>
+          <PagedFooter data={paged} onPage={setPage} className="mt-3" />
         </>
       ) : (
         <ItemFields form={form} setForm={setForm} error={add.error?.message} />

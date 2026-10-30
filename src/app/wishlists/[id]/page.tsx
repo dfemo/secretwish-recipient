@@ -2,25 +2,24 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
-import { ArrowLeft, CalendarHeart, CheckCircle2, Copy, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
-import { api, useApi, useMutation, type Paged } from "@/shared/lib/api";
-import { PagedFooter } from "@/shared/ui/data";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Copy, ExternalLink, GripVertical, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { api, useApi, useMutation } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
 import { date } from "@/shared/lib/format";
-import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, SearchInput, Select, Spinner, StatusBadge, Textarea } from "@/shared/ui/primitives";
+import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, Select, StatusBadge, Textarea } from "@/shared/ui/primitives";
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
+import { AddWishesModal } from "@/components/add-wishes";
 import { shareLink, type Wishlist, type WishlistItem } from "@/lib/types";
-
-type CatalogProduct = { id: string; name: string; priceUsd: number; emoji: string; tint: string; category: string; vendor: { name: string } };
-const priorityLabel: Record<number, string> = { 1: "Top wish", 2: "Would love", 3: "Nice to have" };
 
 export default function WishlistDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: w, error, loading, reload } = useApi<Wishlist>(`/recipient/wishlists/${id}`);
-  const { fmt } = useSession();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -28,14 +27,42 @@ export default function WishlistDetail() {
   const [deleting, setDeleting] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [category, setCategory] = useState("");
+  const [order, setOrder] = useState<WishlistItem[]>([]);
+  useEffect(() => setOrder(w?.items ?? []), [w]);
   const del = useMutation(async () => { await api(`/recipient/wishlists/${id}`, { method: "DELETE" }); return true; });
   const rotate = useMutation(() => api(`/recipient/wishlists/${id}/rotate-link`, { method: "POST" }));
-  const categories = useMemo(() => Array.from(new Set(w?.items.map((i) => i.category) ?? [])), [w]);
+  const categories = useMemo(() => Array.from(new Set(order.map((i) => i.category).filter(Boolean))), [order]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   if (loading) return <PageSkeleton />;
   if (error || !w) return <ErrorState error={error} onRetry={reload} />;
-  const items = w.items.filter((i) => !category || i.category === category);
+  const items = order.filter((i) => !category || i.category === category);
   const link = shareLink(w.shareToken);
+
+  /** Optimistically shows the new order, then saves it; puts it back if saving fails. */
+  async function saveOrder(next: WishlistItem[]) {
+    const previous = order;
+    setOrder(next);
+    try {
+      await api(`/recipient/wishlists/${id}/order`, { method: "PUT", body: { itemIds: next.map((i) => i.id) } });
+    } catch (e) {
+      setOrder(previous);
+      toast({ tone: "error", title: "Couldn't save the new order", body: (e as Error).message });
+    }
+  }
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    saveOrder(arrayMove(order, order.findIndex((i) => i.id === active.id), order.findIndex((i) => i.id === over.id)));
+  };
+  const move = (itemId: string, by: -1 | 1) => {
+    const from = order.findIndex((i) => i.id === itemId);
+    const to = from + by;
+    if (to >= 0 && to < order.length) saveOrder(arrayMove(order, from, to));
+  };
 
   return (
     <>
@@ -85,8 +112,16 @@ export default function WishlistDetail() {
         )}
       </Card>
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-plum-900">Your wishes</h2>
+          <p className="text-xs text-ink-500">{category ? "Show all to reorder." : "Drag to put them in order. Top is what you want most."}</p>
+        </div>
+        <Button icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>
+      </div>
+
       {categories.length > 1 && (
-        <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
           {["", ...categories].map((c) => (
             <button key={c || "all"} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} className={cx("rounded-full px-3 py-1.5 text-xs font-semibold", category === c ? "bg-plum-800 text-ivory-50" : "bg-white text-ink-700 ring-1 ring-ink-200")}>
               {c || "All"}
@@ -95,40 +130,26 @@ export default function WishlistDetail() {
         </div>
       )}
 
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
-        <li>
-          <button type="button" onClick={() => setAdding(true)} className="flex aspect-square w-full items-center justify-center rounded-2xl bg-ink-100 hover:bg-plum-50" aria-label="Add a wish">
-            <span className="grid size-16 place-items-center rounded-full bg-plum-800 text-white shadow-lg"><Plus className="size-8" aria-hidden /></span>
-          </button>
-          <p className="mt-2.5 font-display text-lg font-semibold text-ink-400">Add wish</p>
-        </li>
-        {items.map((i) =>
-          i.product ? (
-            <li key={i.id}>
-              <div className="relative">
-                <ProductArt emoji={i.product.emoji} tint={i.product.tint} size="lg" label={i.product.name} className={cx(i.fulfilled && "opacity-60")} />
-                <div className="absolute top-2 left-2 flex flex-col gap-1">
-                  {i.fulfilled ? <Badge tone="success" icon={CheckCircle2}>Gifted</Badge> : i.priority === 1 && <Badge tone="gold">★ Top wish</Badge>}
-                  {i.product.availability !== "In stock" && !i.fulfilled && <Badge tone="warning">{i.product.availability}</Badge>}
-                </div>
-                <button type="button" onClick={() => setEditItem(i)} className="absolute top-2 right-2 grid size-8 place-items-center rounded-full bg-white/90 text-ink-700 shadow hover:text-plum-700" aria-label={`Edit ${i.product.name}`}>
-                  <Pencil className="size-4" />
-                </button>
-              </div>
-              <p className="mt-2.5 line-clamp-1 text-sm font-semibold">{i.product.name}</p>
-              <p className="text-xs text-ink-500">{i.product.vendor} · {i.category}</p>
-              <p className="mt-0.5 flex items-center justify-between text-sm">
-                <b className="tabular">{fmt(i.product.priceUsd)}</b>
-                <span className="text-[11px] text-ink-500">{priorityLabel[i.priority]}{i.quantity > 1 && ` · ×${i.quantity}`}</span>
-              </p>
-              {i.notes && <p className="mt-1 line-clamp-2 text-xs text-ink-700 italic">“{i.notes}”</p>}
-            </li>
-          ) : null,
-        )}
-      </ul>
+      {order.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="font-display text-xl font-semibold text-plum-900">Your list is empty</p>
+          <p className="mt-1 text-sm text-ink-500">Add anything: gifts from SecretWish, things from any shop (paste the link), or cash.</p>
+          <Button className="mt-4" icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>
+        </Card>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy} disabled={!!category}>
+            <ol className="space-y-2" aria-label="Wishes, most wanted first">
+              {items.map((i) => (
+                <SortableWish key={i.id} item={i} rank={order.indexOf(i) + 1} total={order.length} sortable={!category} onEdit={() => setEditItem(i)} onMove={(by) => move(i.id, by)} />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
+      )}
 
       <WishlistForm open={editing} onClose={() => setEditing(false)} existing={w} />
-      {adding && <AddItemModal wishlistId={w.id} existing={w.items.map((i) => i.product?.id ?? "")} onClose={() => setAdding(false)} />}
+      {adding && <AddWishesModal wishlistId={w.id} existingProductIds={order.filter((i) => i.product).map((i) => i.product!.id)} onClose={() => setAdding(false)} />}
       {editItem && <EditItemModal item={editItem} onClose={() => setEditItem(null)} />}
       <ConfirmDialog
         open={deleting}
@@ -154,71 +175,90 @@ export default function WishlistDetail() {
   );
 }
 
-function AddItemModal({ wishlistId, existing, onClose }: { wishlistId: string; existing: string[]; onClose: () => void }) {
-  const [search, setSearch] = useState("");
-  const [picked, setPicked] = useState<CatalogProduct | null>(null);
-  const [form, setForm] = useState({ priority: 2, notes: "", quantity: 1, category: "" });
-  const [page, setPage] = useState(1);
-  useEffect(() => setPage(1), [search]);
-  const { data: paged, loading } = useApi<Paged<CatalogProduct>>(`/catalog/products?search=${encodeURIComponent(search)}&page=${page}&pageSize=24`);
-  const data = paged?.items;
-  const { fmt } = useSession();
-  const toast = useToast();
-  const add = useMutation(() => api(`/recipient/wishlists/${wishlistId}/items`, { method: "POST", body: { productId: picked!.id, ...form } }));
+function WishArt({ item }: { item: WishlistItem }) {
+  if (item.product) return <ProductArt emoji={item.product.emoji} tint={item.product.tint} size="sm" className={cx(item.fulfilled && "opacity-60")} />;
+  if (item.kind === "Custom" && item.imageUrl)
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={item.imageUrl} alt="" referrerPolicy="no-referrer" className={cx("size-12 shrink-0 rounded-xl object-cover", item.fulfilled && "opacity-60")} />;
+  return <ProductArt emoji={item.kind === "Cash" ? "💸" : "🎁"} tint={item.kind === "Cash" ? "sage" : "lavender"} size="sm" className={cx(item.fulfilled && "opacity-60")} />;
+}
 
+function SortableWish({ item: i, rank, total, sortable, onEdit, onMove }: { item: WishlistItem; rank: number; total: number; sortable: boolean; onEdit: () => void; onMove: (by: -1 | 1) => void }) {
+  const { fmt } = useSession();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: i.id, disabled: !sortable });
+  const price = i.product?.priceUsd ?? i.cashAmountUsd ?? i.estimatedPriceUsd;
   return (
-    <Modal
-      open
-      onClose={onClose}
-      size="xl"
-      title={picked ? "Add details" : "Add a wish"}
-      description={picked ? picked.name : "Choose from approved SecretWish vendors"}
-      footer={
-        picked ? (
-          <>
-            <Button variant="ghost" onClick={() => setPicked(null)}>Back</Button>
-            <Button loading={add.pending} onClick={async () => { if ((await add.run()) !== undefined) { toast({ tone: "success", title: `${picked.name} added` }); onClose(); } }}>Add to wishlist</Button>
-          </>
-        ) : undefined
-      }
-    >
-      {!picked ? (
-        <>
-          <SearchInput value={search} onChange={setSearch} label="Search catalogue" placeholder="Search gifts" className="mb-4" />
-          {loading && <Spinner />}
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {data?.map((p) => {
-              const already = existing.includes(p.id);
-              return (
-                <li key={p.id}>
-                  <button type="button" disabled={already} onClick={() => { setPicked(p); setForm((f) => ({ ...f, category: p.category })); }} className="w-full rounded-2xl p-1 text-left hover:bg-plum-50 disabled:opacity-50">
-                    <ProductArt emoji={p.emoji} tint={p.tint} size="lg" />
-                    <p className="mt-2 line-clamp-1 text-[13px] font-semibold">{p.name}</p>
-                    <p className="text-xs text-ink-500">{already ? "Already on this list" : `${fmt(p.priceUsd)} · ${p.vendor.name}`}</p>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <PagedFooter data={paged} onPage={setPage} className="mt-3" />
-        </>
-      ) : (
-        <ItemFields form={form} setForm={setForm} error={add.error?.message} />
-      )}
-    </Modal>
+    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={cx("relative", isDragging && "z-10")}>
+      <Card className={cx("flex items-center gap-3 p-3", isDragging && "shadow-[var(--shadow-pop)] ring-2 ring-plum-300")}>
+        {sortable && (
+          <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} className="grid h-12 w-7 shrink-0 cursor-grab touch-none place-items-center rounded-lg text-ink-400 hover:bg-ink-100 active:cursor-grabbing" aria-label={`Reorder ${i.name}, number ${rank} of ${total}. Press space, then arrow keys.`}>
+            <GripVertical className="size-5" />
+          </button>
+        )}
+        <span className="w-5 shrink-0 text-center text-xs font-bold text-ink-400" aria-hidden>{rank}</span>
+        <WishArt item={i} />
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate text-sm font-semibold">{i.name}</span>
+            {i.fulfilled && <Badge tone="success" icon={CheckCircle2}>Gifted</Badge>}
+            {i.kind === "Cash" && !i.fulfilled && <Badge tone="gold">Cash</Badge>}
+            {i.product && i.product.availability !== "In stock" && !i.fulfilled && <Badge tone="warning">{i.product.availability}</Badge>}
+          </p>
+          <p className="truncate text-xs text-ink-500">
+            {i.product ? i.product.vendor : i.kind === "Custom" ? "Vendors can source this" : "Sent to your bank"}
+            {i.category && i.kind !== "Cash" && ` · ${i.category}`}
+            {i.quantity > 1 && ` · ×${i.quantity}`}
+          </p>
+          {i.notes && <p className="mt-0.5 line-clamp-1 text-xs text-ink-700 italic">“{i.notes}”</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {price != null && <b className="text-sm tabular">{i.kind === "Custom" ? "~" : ""}{fmt(price)}</b>}
+          <div className="flex items-center">
+            {i.url && (
+              <a href={i.url} target="_blank" rel="noopener noreferrer nofollow" className="grid size-8 place-items-center rounded-full text-ink-500 hover:bg-ink-100 hover:text-plum-700" aria-label={`Open the link for ${i.name}`}>
+                <ExternalLink className="size-4" />
+              </a>
+            )}
+            {sortable && (
+              <>
+                <button type="button" disabled={rank === 1} onClick={() => onMove(-1)} className="grid size-8 place-items-center rounded-full text-ink-500 hover:bg-ink-100 disabled:opacity-30" aria-label={`Move ${i.name} up`}><ArrowUp className="size-4" /></button>
+                <button type="button" disabled={rank === total} onClick={() => onMove(1)} className="grid size-8 place-items-center rounded-full text-ink-500 hover:bg-ink-100 disabled:opacity-30" aria-label={`Move ${i.name} down`}><ArrowDown className="size-4" /></button>
+              </>
+            )}
+            <button type="button" onClick={onEdit} className="grid size-8 place-items-center rounded-full text-ink-500 hover:bg-ink-100 hover:text-plum-700" aria-label={`Edit ${i.name}`}><Pencil className="size-4" /></button>
+          </div>
+        </div>
+      </Card>
+    </li>
   );
 }
 
 function EditItemModal({ item, onClose }: { item: WishlistItem; onClose: () => void }) {
-  const [form, setForm] = useState({ priority: item.priority, notes: item.notes, quantity: item.quantity, category: item.category });
+  const { currency, meta } = useSession();
+  const fx = currency === "NGN" ? (meta?.fxRateNgn ?? 1550) : 1;
+  const symbol = currency === "NGN" ? "₦" : "$";
+  const shown = (usd: number | null) => (usd == null ? "" : String(Math.round(usd * fx * 100) / 100));
+  const toUsd = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) / fx) * 100) / 100);
+  const [form, setForm] = useState({
+    notes: item.notes, quantity: item.quantity, category: item.category, categoryId: item.categoryId ?? "",
+    title: item.kind === "Custom" ? item.name : "", url: item.url ?? "", price: shown(item.estimatedPriceUsd), amount: shown(item.cashAmountUsd),
+  });
   const toast = useToast();
-  const save = useMutation(() => api(`/recipient/items/${item.id}`, { method: "PUT", body: { productId: item.product?.id, ...form } }));
+  const save = useMutation(() =>
+    api(`/recipient/items/${item.id}`, {
+      method: "PUT",
+      body: {
+        notes: form.notes, quantity: form.quantity, category: form.category, categoryId: form.categoryId || null,
+        title: form.title, url: form.url || null, imageUrl: item.imageUrl, estimatedPriceUsd: toUsd(form.price), cashAmountUsd: toUsd(form.amount),
+      },
+    }),
+  );
   const remove = useMutation(async () => { await api(`/recipient/items/${item.id}`, { method: "DELETE" }); return true; });
   return (
     <Modal
       open
       onClose={onClose}
-      title={item.product?.name ?? "Edit wish"}
+      title={item.name || "Edit wish"}
       footer={
         <>
           <Button variant="ghost" icon={Trash2} loading={remove.pending} onClick={async () => { if (await remove.run()) { toast({ tone: "success", title: "Removed from wishlist" }); onClose(); } }}>Remove</Button>
@@ -227,32 +267,36 @@ function EditItemModal({ item, onClose }: { item: WishlistItem; onClose: () => v
       }
     >
       {item.fulfilled && <Notice className="mb-4" tone="success">Someone already gifted this. 🎉</Notice>}
-      <ItemFields form={form} setForm={setForm} error={save.error?.message ?? remove.error?.message} />
-    </Modal>
-  );
-}
-
-type ItemForm = { priority: number; notes: string; quantity: number; category: string };
-function ItemFields({ form, setForm, error }: { form: ItemForm; setForm: (f: ItemForm) => void; error?: string }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Priority">
-        {(id) => (
-          <Select id={id} value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}>
-            <option value={1}>★ Top wish</option>
-            <option value={2}>Would love</option>
-            <option value={3}>Nice to have</option>
-          </Select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {item.kind === "Custom" && (
+          <>
+            <Field label="What would you like?" className="sm:col-span-2">{(id) => <Input id={id} maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}</Field>
+            <Field label="Link (optional)" className="sm:col-span-2">{(id) => <Input id={id} inputMode="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://…" />}</Field>
+            <Field label={`Rough price (${symbol})`}>{(id) => <Input id={id} inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^\d.]/g, "") })} />}</Field>
+            <Field label="Category">
+              {(id) => (
+                <Select id={id} value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+                  <option value="">None</option>
+                  {meta?.categories.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
+                </Select>
+              )}
+            </Field>
+          </>
         )}
-      </Field>
-      <Field label="Quantity">{(id) => <Input id={id} type="number" min={1} max={10} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Math.min(10, Math.max(1, Number(e.target.value))) })} />}</Field>
-      <Field label="Group / category" hint="Organise your list, e.g. “Kitchen”, “Self-care”." className="sm:col-span-2">
-        {(id, d) => <Input id={id} aria-describedby={d} maxLength={40} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />}
-      </Field>
-      <Field label="Notes for gifters" hint="Size, colour, anything that helps. Visible to people you share with." className="sm:col-span-2">
-        {(id, d) => <Textarea id={id} aria-describedby={d} maxLength={200} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />}
-      </Field>
-      {error && <Notice tone="danger" className="sm:col-span-2">{error}</Notice>}
-    </div>
+        {item.kind === "Cash" && (
+          <Field label={`Amount (${symbol})`} className="sm:col-span-2">{(id) => <Input id={id} inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/[^\d.]/g, "") })} />}</Field>
+        )}
+        {item.kind !== "Cash" && (
+          <Field label="Quantity">{(id) => <Input id={id} type="number" min={1} max={10} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Math.min(10, Math.max(1, Number(e.target.value))) })} />}</Field>
+        )}
+        {item.kind === "Catalog" && (
+          <Field label="Group" hint="Organise your list, e.g. “Kitchen”.">{(id, d) => <Input id={id} aria-describedby={d} maxLength={40} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />}</Field>
+        )}
+        <Field label="Notes for gifters" hint="Size, colour, anything that helps. Visible to people you share with." className="sm:col-span-2">
+          {(id, d) => <Textarea id={id} aria-describedby={d} maxLength={500} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />}
+        </Field>
+        {(save.error ?? remove.error) && <Notice tone="danger" className="sm:col-span-2">{(save.error ?? remove.error)!.message}</Notice>}
+      </div>
+    </Modal>
   );
 }

@@ -1,11 +1,20 @@
+/** One wish. Catalog = an approved SecretWish gift; Custom = anything else, described and/or linked; Cash = money instead. */
 export type WishlistItem = {
   id: string;
+  kind: "Catalog" | "Custom" | "Cash";
+  position: number;
   priority: number;
+  name: string;
   notes: string;
   quantity: number;
   fulfilled: boolean;
   addedAt: string;
   category: string;
+  categoryId: string | null;
+  url: string | null;
+  imageUrl: string | null;
+  estimatedPriceUsd: number | null;
+  cashAmountUsd: number | null;
   product: { id: string; name: string; priceUsd: number; emoji: string; tint: string; vendor: string; availability: string } | null;
 };
 

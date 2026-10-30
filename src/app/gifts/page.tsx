@@ -9,6 +9,7 @@ import { date, dateTime } from "@/shared/lib/format";
 import { Badge, Button, Card, cx, EmptyState, ErrorState, Field, Input, Notice, PageHeader, ProductArt, Spinner, Tabs } from "@/shared/ui/primitives";
 import { useToast } from "@/shared/ui/overlay";
 import type { Gift } from "@/lib/types";
+import { CashGiftsPanel } from "@/components/cash-gifts";
 
 type VerifyResult = { result: "success" | "incorrect" | "locked" | "expired" | "already_used" | "invalid_format" | "not_found"; message: string; remaining?: number };
 
@@ -23,8 +24,11 @@ const resultStyle: Record<VerifyResult["result"], { tone: "success" | "danger" |
 };
 
 export default function GiftsPage() {
-  const [tab, setTab] = useState<"incoming" | "received">("incoming");
-  const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>("/recipient/gifts", { tab }, 10);
+  const [tab, setTab] = useState<"incoming" | "received" | "cash">("incoming");
+  const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>(tab === "cash" ? null : "/recipient/gifts", { tab }, 10);
+  const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data?.counts?.incoming }, { value: "received", label: "Received", count: data?.counts?.received }, { value: "cash", label: "Cash" }]} />;
+  const header = <PageHeader title="Your gifts" description="We keep surprises secret: no item, price or sender is shown until a gift arrives — and the sender only if they choose." />;
+  if (tab === "cash") return <>{header}{tabs}<CashGiftsPanel /></>;
   if (loading) return <Spinner />;
   if (error || !data || !items) return <ErrorState error={error} onRetry={reload} />;
   const incoming = tab === "incoming" ? items : [];
@@ -32,8 +36,8 @@ export default function GiftsPage() {
 
   return (
     <>
-      <PageHeader title="Your gifts" description="We keep surprises secret: no item, price or sender is shown until a gift arrives — and the sender only if they choose." />
-      <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data.counts?.incoming }, { value: "received", label: "Received", count: data.counts?.received }]} />
+      {header}
+      {tabs}
       {tab === "incoming" ? (
         incoming.length === 0 ? (
           <EmptyState icon={GiftIcon} title="Nothing on the way right now" description="When someone sends you a gift, you'll see it here — without spoilers." />

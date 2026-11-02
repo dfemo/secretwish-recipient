@@ -9,6 +9,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { api, useApi, useMutation } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
+import { currencySymbol } from "@/shared/lib/format";
 import { date } from "@/shared/lib/format";
 import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, Select, StatusBadge, Textarea } from "@/shared/ui/primitives";
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
@@ -141,7 +142,7 @@ export default function WishlistDetail() {
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy} disabled={!!category}>
             <ol className="space-y-2" aria-label="Wishes, most wanted first">
               {items.map((i) => (
-                <SortableWish key={i.id} item={i} rank={order.indexOf(i) + 1} total={order.length} sortable={!category} onEdit={() => setEditItem(i)} onMove={(by) => move(i.id, by)} />
+                <SortableWish key={i.id} currency={w.currency ?? "USD"} item={i} rank={order.indexOf(i) + 1} total={order.length} sortable={!category} onEdit={() => setEditItem(i)} onMove={(by) => move(i.id, by)} />
               ))}
             </ol>
           </SortableContext>
@@ -149,8 +150,8 @@ export default function WishlistDetail() {
       )}
 
       <WishlistForm open={editing} onClose={() => setEditing(false)} existing={w} />
-      {adding && <AddWishesModal wishlistId={w.id} existingProductIds={order.filter((i) => i.product).map((i) => i.product!.id)} onClose={() => setAdding(false)} />}
-      {editItem && <EditItemModal item={editItem} onClose={() => setEditItem(null)} />}
+      {adding && <AddWishesModal currency={w.currency ?? "USD"} wishlistId={w.id} existingProductIds={order.filter((i) => i.product).map((i) => i.product!.id)} onClose={() => setAdding(false)} />}
+      {editItem && <EditItemModal currency={w.currency ?? "USD"} item={editItem} onClose={() => setEditItem(null)} />}
       <ConfirmDialog
         open={deleting}
         onClose={() => setDeleting(false)}
@@ -183,8 +184,9 @@ function WishArt({ item }: { item: WishlistItem }) {
   return <ProductArt emoji={item.kind === "Cash" ? "💸" : "🎁"} tint={item.kind === "Cash" ? "sage" : "lavender"} size="sm" className={cx(item.fulfilled && "opacity-60")} />;
 }
 
-function SortableWish({ item: i, rank, total, sortable, onEdit, onMove }: { item: WishlistItem; rank: number; total: number; sortable: boolean; onEdit: () => void; onMove: (by: -1 | 1) => void }) {
-  const { fmt } = useSession();
+function SortableWish({ item: i, currency, rank, total, sortable, onEdit, onMove }: { item: WishlistItem; currency: string; rank: number; total: number; sortable: boolean; onEdit: () => void; onMove: (by: -1 | 1) => void }) {
+  const { fmtIn } = useSession();
+  const fmt = (usd: number | null | undefined) => fmtIn(usd, currency);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: i.id, disabled: !sortable });
   const price = i.product?.priceUsd ?? i.cashAmountUsd ?? i.estimatedPriceUsd;
   return (
@@ -233,10 +235,11 @@ function SortableWish({ item: i, rank, total, sortable, onEdit, onMove }: { item
   );
 }
 
-function EditItemModal({ item, onClose }: { item: WishlistItem; onClose: () => void }) {
-  const { currency, meta } = useSession();
-  const fx = currency === "NGN" ? (meta?.fxRateNgn ?? 1550) : 1;
-  const symbol = currency === "NGN" ? "₦" : "$";
+/** Amounts are typed in the wishlist's own currency and stored in USD. */
+function EditItemModal({ item, currency, onClose }: { item: WishlistItem; currency: string; onClose: () => void }) {
+  const { meta, rate } = useSession();
+  const fx = rate(currency);
+  const symbol = currencySymbol(currency);
   const shown = (usd: number | null) => (usd == null ? "" : String(Math.round(usd * fx * 100) / 100));
   const toUsd = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) / fx) * 100) / 100);
   const [form, setForm] = useState({

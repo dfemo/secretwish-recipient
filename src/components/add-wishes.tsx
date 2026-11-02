@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Banknote, Gift, Link2, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { api, ApiError, useApi, useMutation, type Paged } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
+import { currencySymbol } from "@/shared/lib/format";
 import { Button, cx, Input, Notice, ProductArt, Select, Spinner, Textarea } from "@/shared/ui/primitives";
 import { Modal, useToast } from "@/shared/ui/overlay";
 
@@ -37,15 +38,16 @@ const kinds: { value: Kind; label: string; icon: typeof Gift }[] = [
  * Add several wishes in one go, like writing a list. Each row is something described in words (with an optional link to a shop
  * like Zara — pasting one fills in the details), a gift from the SecretWish catalogue, or cash instead. Enter adds another row.
  */
-export function AddWishesModal({ wishlistId, existingProductIds, onClose }: { wishlistId: string; existingProductIds: string[]; onClose: () => void }) {
-  const { currency, meta } = useSession();
+/** Prices and cash amounts are typed in the wishlist's currency and sent to the API in USD. */
+export function AddWishesModal({ wishlistId, currency, existingProductIds, onClose }: { wishlistId: string; currency: string; existingProductIds: string[]; onClose: () => void }) {
+  const { meta, rate } = useSession();
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const focusKey = useRef<number | null>(null);
-  const fx = meta?.fxRateNgn ?? 1550;
-  const symbol = currency === "NGN" ? "₦" : "$";
-  const toUsd = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) / (currency === "NGN" ? fx : 1)) * 100) / 100);
+  const fx = rate(currency);
+  const symbol = currencySymbol(currency);
+  const toUsd = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) / fx) * 100) / 100);
 
   const update = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const addRow = (after?: number, kind?: Kind) => {
@@ -71,7 +73,7 @@ export function AddWishesModal({ wishlistId, existingProductIds, onClose }: { wi
         ...r, previewing: false,
         title: r.title || p.title || "",
         imageUrl: p.imageUrl ?? r.imageUrl,
-        price: r.price || (p.priceUsd ? String(Math.round(p.priceUsd * (currency === "NGN" ? fx : 1))) : ""),
+        price: r.price || (p.priceUsd ? String(Math.round(p.priceUsd * fx)) : ""),
       }));
     } catch {
       update(key, { previewing: false });

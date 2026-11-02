@@ -21,6 +21,8 @@ export type WishlistItem = {
 export type Wishlist = {
   id: string;
   title: string;
+  /** The currency the owner enters prices in and visitors see (amounts are stored in USD). */
+  currency?: string;
   description: string;
   occasion?: string;
   eventDate?: string;

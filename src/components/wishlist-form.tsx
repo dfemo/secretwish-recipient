@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "@/shared/lib/session";
 import { Globe2, Link2, Lock } from "lucide-react";
 import { api, ApiError, useMutation } from "@/shared/lib/api";
 import { Button, cx, Field, Input, Notice, Select, Textarea } from "@/shared/ui/primitives";
@@ -18,17 +19,18 @@ const occasions = ["Birthday", "Wedding", "Anniversary", "Graduation", "Housewar
 /** Create or edit a wishlist. Public discovery requires an explicit consent tick (also enforced by the API). */
 export function WishlistForm({ open, onClose, existing, onSaved }: { open: boolean; onClose: () => void; existing?: Wishlist; onSaved?: (id: string) => void }) {
   const toast = useToast();
-  const [f, setF] = useState({ title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false });
+  const { currency, meta } = useSession();
+  const [f, setF] = useState({ title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency });
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
     setErrors({});
     setF(
       existing
-        ? { title: existing.title, description: existing.description, occasion: existing.occasion ?? "", eventDate: existing.eventDate ?? "", visibility: existing.visibility, confirmPublic: existing.visibility === "Public" }
-        : { title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false },
+        ? { title: existing.title, description: existing.description, occasion: existing.occasion ?? "", eventDate: existing.eventDate ?? "", visibility: existing.visibility, confirmPublic: existing.visibility === "Public", currency: existing.currency ?? "USD" }
+        : { title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency },
     );
-  }, [open, existing]);
+  }, [open, existing, currency]);
 
   const save = useMutation(() =>
     api<{ id: string }>(existing ? `/recipient/wishlists/${existing.id}` : "/recipient/wishlists", {
@@ -72,6 +74,15 @@ export function WishlistForm({ open, onClose, existing, onSaved }: { open: boole
         </Field>
         <Field label="Description" className="sm:col-span-2" hint="Optional — a note for people browsing your list.">
           {(id, d) => <Textarea id={id} aria-describedby={d} maxLength={400} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />}
+        </Field>
+        <Field label="Currency" hint="You enter prices and cash amounts in this currency, and people viewing your list see it too.">
+          {(id, d) => (
+            <Select id={id} aria-describedby={d} value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })}>
+              {(meta?.currencies ?? [{ code: "NGN", name: "Nigerian naira", perUsd: 0 }, { code: "USD", name: "US dollar", perUsd: 1 }]).map((c) => (
+                <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+              ))}
+            </Select>
+          )}
         </Field>
         <Field label="Occasion">
           {(id) => (

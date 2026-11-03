@@ -19,7 +19,8 @@ export function WishlistCover({ w }: { w: Wishlist }) {
         <div>
           <p className="font-display text-lg font-semibold text-ink-900 group-hover:text-plum-700">{w.title}</p>
           <p className="text-xs text-ink-500">
-            {w.items.length} wish{w.items.length === 1 ? "" : "es"} · {w.items.filter((i) => i.fulfilled).length} gifted
+            {w.items.length} wish{w.items.length === 1 ? "" : "es"} · {w.gifts ?? w.items.filter((i) => i.fulfilled).length} gift{(w.gifts ?? 0) === 1 ? "" : "s"} received
+            {!!w.cashGifts && ` (${w.cashGifts} cash)`}
           </p>
         </div>
         <StatusBadge status={w.visibility} />

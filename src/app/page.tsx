@@ -15,7 +15,8 @@ import { shareLink, type Gift as GiftT, type Wishlist } from "@/lib/types";
 
 type Home = {
   user: { name: string; city: string; hasAddress: boolean };
-  stats: { wishlists: number; items: number; gifted: number; shared: number };
+  /** gifted: wishes ticked off; received: every paid gift, including cash for a list as a whole. */
+  stats: { wishlists: number; items: number; gifted: number; received: number; cashReceived: number; shared: number };
   wishlists: Wishlist[];
   recentItems: { id: string; wishlist: string; wishlistId: string; addedAt: string; fulfilled: boolean; product: { name: string; emoji: string; tint: string; priceUsd: number } }[];
   gifts: GiftT[];
@@ -46,7 +47,7 @@ export default function RecipientHome() {
       <section className="flex flex-col items-center text-center">
         <Avatar name={data.user.name} size={104} className="ring-4 ring-gold-300/60" />
         <h1 className="mt-4 font-display text-4xl font-semibold text-plum-900">{data.user.name}</h1>
-        <p className="text-sm text-ink-500">{data.user.city} · {data.stats.wishlists} wishlists · {data.stats.gifted} wishes come true</p>
+        <p className="text-sm text-ink-500">{data.user.city} · {data.stats.wishlists} wishlists · {data.stats.received} gift{data.stats.received === 1 ? "" : "s"} received{data.stats.cashReceived > 0 && ` (${data.stats.cashReceived} cash)`}{data.stats.gifted > 0 && ` · ${data.stats.gifted} wish${data.stats.gifted === 1 ? "" : "es"} come true`}</p>
         <div className="mt-5 inline-flex rounded-2xl bg-white p-1 shadow-[var(--shadow-card)]" role="tablist">
           {(["lists", "gifts"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx("rounded-xl px-6 py-2 text-sm font-semibold", tab === t ? "bg-plum-800 text-ivory-50" : "text-ink-500 hover:text-ink-900")}>

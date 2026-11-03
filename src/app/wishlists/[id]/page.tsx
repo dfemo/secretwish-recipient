@@ -92,7 +92,7 @@ export default function WishlistDetail() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-display text-4xl font-semibold text-plum-900">{w.title}</h1>
             <StatusBadge status={w.visibility} />
-            {w.viaHub && <Badge tone="info">Delivered by SecretWish</Badge>}
+            {w.viaHub && <Badge tone="info">To be delivered by a SecretWish agent</Badge>}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-ink-500">
             {w.occasion && (

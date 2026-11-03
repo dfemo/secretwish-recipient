@@ -70,6 +70,11 @@ export default function WishlistDetail() {
       <Link href="/wishlists" className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-plum-700">
         <ArrowLeft className="size-4" aria-hidden /> My wishlists
       </Link>
+      {w.closedAt && (
+        <Notice className="mb-5" tone="warning" title="SecretWish closed this wishlist">
+          Since {new Date(w.closedAt).toLocaleDateString()}, nobody can send gifts from it. Contact support if you think this is a mistake.
+        </Notice>
+      )}
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">

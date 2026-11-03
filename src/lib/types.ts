@@ -29,6 +29,8 @@ export type Wishlist = {
   visibility: "Private" | "Link" | "Public";
   shareToken: string;
   createdAt: string;
+  /** Set when SecretWish closed the list: nobody can gift from it until it's reopened. */
+  closedAt?: string | null;
   items: WishlistItem[];
 };
 

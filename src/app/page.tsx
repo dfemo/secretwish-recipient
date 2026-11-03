@@ -18,7 +18,7 @@ type Home = {
   /** gifted: wishes ticked off; received: every paid gift, including cash for a list as a whole. */
   stats: { wishlists: number; items: number; gifted: number; received: number; cashReceived: number; shared: number };
   wishlists: Wishlist[];
-  recentItems: { id: string; wishlist: string; wishlistId: string; addedAt: string; fulfilled: boolean; product: { name: string; emoji: string; tint: string; priceUsd: number } }[];
+  recentItems: { id: string; wishlist: string; wishlistId: string; addedAt: string; fulfilled: boolean; product: { name: string; emoji: string; tint: string; image?: string | null; priceUsd: number } }[];
   gifts: GiftT[];
 };
 
@@ -89,7 +89,7 @@ export default function RecipientHome() {
               <ul className="divide-y divide-ink-100 px-5 pb-3">
                 {data.recentItems.map((i) => (
                   <li key={i.id} className="flex items-center gap-3 py-3">
-                    <ProductArt emoji={i.product.emoji} tint={i.product.tint} size="sm" />
+                    <ProductArt emoji={i.product.emoji} tint={i.product.tint} src={i.product.image} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{i.product.name}</p>
                       <p className="text-xs text-ink-500">

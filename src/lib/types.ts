@@ -15,7 +15,7 @@ export type WishlistItem = {
   imageUrl: string | null;
   estimatedPriceUsd: number | null;
   cashAmountUsd: number | null;
-  product: { id: string; name: string; priceUsd: number; emoji: string; tint: string; vendor: string; availability: string } | null;
+  product: { id: string; name: string; priceUsd: number; emoji: string; tint: string; image?: string | null; vendor: string; availability: string } | null;
 };
 
 export type Wishlist = {
@@ -29,6 +29,9 @@ export type Wishlist = {
   visibility: "Private" | "Link" | "Public";
   shareToken: string;
   createdAt: string;
+  /** The owner asked SecretWish to deliver their gifts; viaHub is whether it does (also when gifts come from several vendors). */
+  deliverViaHub?: boolean;
+  viaHub?: boolean;
   /** Set once the list is closed (by its owner, for good, or by SecretWish): nobody can gift from it. */
   closedAt?: string | null;
   /** Thanks / NoLongerNeeded when the owner closed it (with their message), Staff when SecretWish did. */

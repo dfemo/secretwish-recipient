@@ -9,7 +9,7 @@ import { Button, cx, Input, Notice, ProductArt, Select, Spinner, Textarea } from
 import { Modal, useToast } from "@/shared/ui/overlay";
 
 type Kind = "Custom" | "Catalog" | "Cash";
-type CatalogProduct = { id: string; name: string; priceUsd: number; emoji: string; tint: string; category: string; vendor: { name: string } };
+type CatalogProduct = { id: string; name: string; priceUsd: number; emoji: string; tint: string; images?: string[]; category: string; vendor: { name: string } };
 type Row = {
   key: number;
   kind: Kind;
@@ -209,7 +209,7 @@ export function AddWishesModal({ wishlistId, currency, existingProductIds, onClo
             {r.kind === "Catalog" && (
               r.product ? (
                 <div className="flex items-center gap-3">
-                  <ProductArt emoji={r.product.emoji} tint={r.product.tint} size="sm" />
+                  <ProductArt emoji={r.product.emoji} tint={r.product.tint} src={r.product.images?.[0]} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{r.product.name}</p>
                     <p className="text-xs text-ink-500">{r.product.vendor.name}</p>
@@ -253,7 +253,7 @@ function CatalogPicker({ inputId, exclude, onPick }: { inputId: string; exclude:
           return (
             <li key={p.id}>
               <button type="button" disabled={taken} onClick={() => onPick(p)} className="flex w-full items-center gap-2 rounded-xl p-1.5 text-left hover:bg-plum-50 disabled:opacity-50">
-                <ProductArt emoji={p.emoji} tint={p.tint} size="sm" />
+                <ProductArt emoji={p.emoji} tint={p.tint} src={p.images?.[0]} size="sm" />
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-semibold">{p.name}</span>
                   <span className="block text-xs text-ink-500">{taken ? "Already on your list" : `${fmt(p.priceUsd)} · ${p.vendor.name}`}</span>

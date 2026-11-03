@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Copy, ExternalLink, GripVertical, Heart, Lock, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Compass, Copy, ExternalLink, GripVertical, Heart, Lock, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,7 +11,7 @@ import { api, useApi, useMutation } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
 import { currencySymbol } from "@/shared/lib/format";
 import { date } from "@/shared/lib/format";
-import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, Select, StatusBadge, Textarea } from "@/shared/ui/primitives";
+import { Badge, Button, ButtonLink, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton, ProductArt, Select, StatusBadge, Textarea } from "@/shared/ui/primitives";
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
 import { AddWishesModal } from "@/components/add-wishes";
@@ -92,6 +92,7 @@ export default function WishlistDetail() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-display text-4xl font-semibold text-plum-900">{w.title}</h1>
             <StatusBadge status={w.visibility} />
+            {w.viaHub && <Badge tone="info">Delivered by SecretWish</Badge>}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-ink-500">
             {w.occasion && (
@@ -139,7 +140,12 @@ export default function WishlistDetail() {
           <h2 className="font-display text-2xl font-semibold text-plum-900">Your wishes</h2>
           <p className="text-xs text-ink-500">{category ? "Show all to reorder." : "Drag to put them in order. Top is what you want most."}</p>
         </div>
-        {!w.closedAt && <Button icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>}
+        {!w.closedAt && (
+          <div className="flex gap-2">
+            <ButtonLink href={`/discover?list=${w.id}`} variant="secondary" icon={Compass}>Discover gifts</ButtonLink>
+            <Button icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>
+          </div>
+        )}
       </div>
 
       {categories.length > 1 && (
@@ -199,7 +205,7 @@ export default function WishlistDetail() {
 }
 
 function WishArt({ item }: { item: WishlistItem }) {
-  if (item.product) return <ProductArt emoji={item.product.emoji} tint={item.product.tint} size="sm" className={cx(item.fulfilled && "opacity-60")} />;
+  if (item.product) return <ProductArt emoji={item.product.emoji} tint={item.product.tint} src={item.product.image} size="sm" className={cx(item.fulfilled && "opacity-60")} />;
   if (item.kind === "Custom" && item.imageUrl)
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={item.imageUrl} alt="" referrerPolicy="no-referrer" className={cx("size-12 shrink-0 rounded-xl object-cover", item.fulfilled && "opacity-60")} />;

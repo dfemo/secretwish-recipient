@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/shared/lib/session";
 import { Globe2, Link2, Lock } from "lucide-react";
 import { api, ApiError, useMutation } from "@/shared/lib/api";
-import { Button, cx, Field, Input, Notice, Select, Textarea } from "@/shared/ui/primitives";
+import { Button, cx, Field, Input, Notice, Select, Switch, Textarea } from "@/shared/ui/primitives";
 import { Modal, useToast } from "@/shared/ui/overlay";
 import type { Wishlist } from "@/lib/types";
 
@@ -20,15 +20,15 @@ const occasions = ["Birthday", "Wedding", "Anniversary", "Graduation", "Housewar
 export function WishlistForm({ open, onClose, existing, onSaved }: { open: boolean; onClose: () => void; existing?: Wishlist; onSaved?: (id: string) => void }) {
   const toast = useToast();
   const { currency, meta } = useSession();
-  const [f, setF] = useState({ title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency });
+  const [f, setF] = useState({ title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency, deliverViaHub: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
     setErrors({});
     setF(
       existing
-        ? { title: existing.title, description: existing.description, occasion: existing.occasion ?? "", eventDate: existing.eventDate ?? "", visibility: existing.visibility, confirmPublic: existing.visibility === "Public", currency: existing.currency ?? "USD" }
-        : { title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency },
+        ? { title: existing.title, description: existing.description, occasion: existing.occasion ?? "", eventDate: existing.eventDate ?? "", visibility: existing.visibility, confirmPublic: existing.visibility === "Public", currency: existing.currency ?? "USD", deliverViaHub: !!existing.deliverViaHub }
+        : { title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency, deliverViaHub: false },
     );
   }, [open, existing, currency]);
 
@@ -116,6 +116,14 @@ export function WishlistForm({ open, onClose, existing, onSaved }: { open: boole
             {errors.confirmPublic && <p className="mt-1 text-xs font-medium text-danger-700" role="alert">{errors.confirmPublic}</p>}
           </div>
         )}
+        <div className="sm:col-span-2">
+          <Switch
+            checked={f.deliverViaHub}
+            onChange={(v) => setF({ ...f, deliverViaHub: v })}
+            label="SecretWish delivers my gifts"
+            description="Vendors bring your gifts to the SecretWish hub; we check them and deliver them to you together. Lists with gifts from several vendors always work this way."
+          />
+        </div>
         {serverError && <Notice tone="danger" className="sm:col-span-2">{serverError}</Notice>}
       </div>
     </Modal>

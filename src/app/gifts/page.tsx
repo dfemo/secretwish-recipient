@@ -44,10 +44,24 @@ function GiftsInner() {
   const tab: Tab = fromUrl === "cash" || fromUrl === "received" ? fromUrl : "incoming";
   const setTab = (t: Tab) => router.replace(t === "incoming" ? "/gifts" : `/gifts?tab=${t}`, { scroll: false });
   const cashWaiting = useCashWaiting();
-  const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>(tab === "cash" ? null : "/recipient/gifts", { tab }, 10);
-  const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data?.counts?.incoming }, { value: "received", label: "Received", count: data?.counts?.received }, { value: "cash", label: cashWaiting ? "Cash · action needed" : "Cash" }]} />;
+  // The counts are the same on every tab, so the Cash tab keeps the list request for its counts too.
+  const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>("/recipient/gifts", { tab: tab === "cash" ? "incoming" : tab }, tab === "cash" ? 1 : 10);
+  const c = data?.counts;
+  const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: c?.incoming }, { value: "received", label: "Received", count: c?.received }, { value: "cash", label: cashWaiting ? "Cash · action needed" : "Cash", count: c?.cash }]} />;
   const header = <PageHeader title="Your gifts" description="We keep surprises secret: no item, price or sender is shown until a gift arrives — and the sender only if they choose." />;
-  if (tab === "cash") return <>{header}{tabs}<CashGiftsPanel /></>;
+  if (tab === "cash")
+    return (
+      <>
+        {header}
+        {tabs}
+        {!!c?.cash && (
+          <p className="-mt-3 mb-5 text-sm text-ink-600">
+            {c.cash} cash gift{c.cash === 1 ? "" : "s"} sent to you · {c.cashReceived ?? 0} confirmed received
+          </p>
+        )}
+        <CashGiftsPanel />
+      </>
+    );
   const banner = <CashWaitingBanner className="mb-6" />;
   if (loading) return <Spinner />;
   if (error || !data || !items) return <ErrorState error={error} onRetry={reload} />;

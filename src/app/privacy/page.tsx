@@ -19,30 +19,34 @@ export default function PrivacyPage() {
   useEffect(() => { if (me) setProfile({ address: me.address, city: me.city, phone: me.phone }); }, [me]);
   const saveProfile = useMutation(() => api("/recipient/profile", { method: "PUT", body: profile }));
   const sendReport = useMutation(() => api<{ reference: string }>("/recipient/report", { method: "POST", body: report }));
-  const addrError = saveProfile.error instanceof ApiError ? saveProfile.error.errors?.address?.[0] ?? saveProfile.error.message : null;
+  const fieldErrors = saveProfile.error instanceof ApiError ? saveProfile.error.errors : undefined;
+  const addrError = fieldErrors?.address?.[0] ?? null;
+  const otherError = saveProfile.error && !fieldErrors ? saveProfile.error.message : null;
 
   return (
     <>
       <PageHeader title="Privacy & settings" description="Control how gifts reach you and what people can see." />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Delivery details" description="Used only by the vendor and courier delivering your gifts." />
+          <CardHeader title="Contact & delivery details" description="Your phone and city let SecretWish, vendors and couriers reach you, even for cash gifts. Your address is only needed for physical gifts." />
           <div className="space-y-4 p-5">
             <Notice tone="plum" icon={ShieldCheck}>Senders never see your address — only your first name and city.</Notice>
-            <Field label="Delivery address" required error={addrError}>
+            <Field label="Delivery address" hint="Needed before anyone can send you a physical gift from your wishlist." error={addrError}>
               {(id, d) => <Input id={id} aria-describedby={d} aria-invalid={!!addrError} autoComplete="street-address" value={profile.address} onChange={(e) => setProfile({ ...profile, address: e.target.value })} />}
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="City">
+              <Field label="City" required error={fieldErrors?.city?.[0]}>
                 {(id) => (
-                  <Select id={id} value={profile.city} onChange={(e) => setProfile({ ...profile, city: e.target.value })}>
+                  <Select id={id} value={profile.city || ""} onChange={(e) => setProfile({ ...profile, city: e.target.value })}>
+                    {!profile.city && <option value="">Choose your city</option>}
                     {cities.map((c) => (<option key={c}>{c}</option>))}
                   </Select>
                 )}
               </Field>
-              <Field label="Phone for the courier">{(id) => <Input id={id} type="tel" autoComplete="tel" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />}</Field>
+              <Field label="Phone number" required error={fieldErrors?.phone?.[0]}>{(id, d) => <Input id={id} aria-describedby={d} aria-invalid={!!fieldErrors?.phone} type="tel" autoComplete="tel" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="+234 …" />}</Field>
             </div>
-            <Button icon={MapPin} loading={saveProfile.pending} onClick={async () => { if ((await saveProfile.run()) !== undefined) toast({ tone: "success", title: "Delivery details saved" }); }}>Save delivery details</Button>
+            {otherError && <Notice tone="danger">{otherError}</Notice>}
+            <Button icon={MapPin} loading={saveProfile.pending} onClick={async () => { if ((await saveProfile.run()) !== undefined) toast({ tone: "success", title: "Details saved" }); }}>Save details</Button>
           </div>
         </Card>
         <NotificationPreferences />

@@ -88,7 +88,10 @@ export default function WishlistDetail() {
                 {w.eventDate && ` · ${date(w.eventDate)}`}
               </span>
             )}
-            <span>{w.items.length} wishes · {w.items.filter((i) => i.fulfilled).length} gifted</span>
+            <span>
+              {w.items.length} wishes · {w.items.filter((i) => i.fulfilled).length} gifted
+              {!!w.gifts && ` · ${w.gifts} gift${w.gifts === 1 ? "" : "s"} received${w.cashGifts ? ` (${w.cashGifts} cash)` : ""}`}
+            </span>
           </p>
           {w.description && <p className="mt-2 max-w-2xl text-[15px] text-ink-700">{w.description}</p>}
         </div>

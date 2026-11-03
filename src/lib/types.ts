@@ -31,6 +31,9 @@ export type Wishlist = {
   createdAt: string;
   /** Set when SecretWish closed the list: nobody can gift from it until it's reopened. */
   closedAt?: string | null;
+  /** On the single-list view: gifts received (orders and cash, including cash for the list as a whole). */
+  gifts?: number | null;
+  cashGifts?: number | null;
   items: WishlistItem[];
 };
 

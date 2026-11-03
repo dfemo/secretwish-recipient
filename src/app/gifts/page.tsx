@@ -36,15 +36,13 @@ export default function GiftsPage() {
 }
 
 function GiftsInner() {
-  // Links from notifications and emails open a tab directly, e.g. /gifts?tab=cash to add bank details.
+  // The tab lives in the address, so links (notifications, emails, the cash banner on this page) open it directly,
+  // e.g. /gifts?tab=cash to add bank details.
   const params = useSearchParams();
   const router = useRouter();
-  const initial = params.get("tab");
-  const [tab, setTabState] = useState<Tab>(initial === "cash" || initial === "received" ? initial : "incoming");
-  const setTab = (t: Tab) => {
-    setTabState(t);
-    router.replace(t === "incoming" ? "/gifts" : `/gifts?tab=${t}`, { scroll: false });
-  };
+  const fromUrl = params.get("tab");
+  const tab: Tab = fromUrl === "cash" || fromUrl === "received" ? fromUrl : "incoming";
+  const setTab = (t: Tab) => router.replace(t === "incoming" ? "/gifts" : `/gifts?tab=${t}`, { scroll: false });
   const cashWaiting = useCashWaiting();
   const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>(tab === "cash" ? null : "/recipient/gifts", { tab }, 10);
   const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data?.counts?.incoming }, { value: "received", label: "Received", count: data?.counts?.received }, { value: "cash", label: cashWaiting ? "Cash · action needed" : "Cash" }]} />;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, FlaskConical, Gift as GiftIcon, KeyRound, LifeBuoy, Lock, ShieldX, XCircle } from "lucide-react";
 import { api, useMutation, usePagedApi } from "@/shared/lib/api";
 import { PagedFooter } from "@/shared/ui/data";
@@ -10,6 +11,7 @@ import { Badge, Button, Card, cx, EmptyState, ErrorState, Field, Input, Notice, 
 import { useToast } from "@/shared/ui/overlay";
 import type { Gift } from "@/lib/types";
 import { CashGiftsPanel } from "@/components/cash-gifts";
+import { CashWaitingBanner, useCashWaiting } from "@/components/cash-waiting";
 
 type VerifyResult = { result: "success" | "incorrect" | "locked" | "expired" | "already_used" | "invalid_format" | "not_found"; message: string; remaining?: number };
 
@@ -23,12 +25,32 @@ const resultStyle: Record<VerifyResult["result"], { tone: "success" | "danger" |
   not_found: { tone: "neutral", icon: ShieldX, title: "No code yet" },
 };
 
+type Tab = "incoming" | "received" | "cash";
+
 export default function GiftsPage() {
-  const [tab, setTab] = useState<"incoming" | "received" | "cash">("incoming");
+  return (
+    <Suspense fallback={<Spinner />}>
+      <GiftsInner />
+    </Suspense>
+  );
+}
+
+function GiftsInner() {
+  // Links from notifications and emails open a tab directly, e.g. /gifts?tab=cash to add bank details.
+  const params = useSearchParams();
+  const router = useRouter();
+  const initial = params.get("tab");
+  const [tab, setTabState] = useState<Tab>(initial === "cash" || initial === "received" ? initial : "incoming");
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    router.replace(t === "incoming" ? "/gifts" : `/gifts?tab=${t}`, { scroll: false });
+  };
+  const cashWaiting = useCashWaiting();
   const { data, items, error, loading, reload, setPage } = usePagedApi<Gift>(tab === "cash" ? null : "/recipient/gifts", { tab }, 10);
-  const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data?.counts?.incoming }, { value: "received", label: "Received", count: data?.counts?.received }, { value: "cash", label: "Cash" }]} />;
+  const tabs = <Tabs className="mb-6 w-fit" value={tab} onChange={setTab} tabs={[{ value: "incoming", label: "On the way", count: data?.counts?.incoming }, { value: "received", label: "Received", count: data?.counts?.received }, { value: "cash", label: cashWaiting ? "Cash · action needed" : "Cash" }]} />;
   const header = <PageHeader title="Your gifts" description="We keep surprises secret: no item, price or sender is shown until a gift arrives — and the sender only if they choose." />;
   if (tab === "cash") return <>{header}{tabs}<CashGiftsPanel /></>;
+  const banner = <CashWaitingBanner className="mb-6" />;
   if (loading) return <Spinner />;
   if (error || !data || !items) return <ErrorState error={error} onRetry={reload} />;
   const incoming = tab === "incoming" ? items : [];
@@ -37,6 +59,7 @@ export default function GiftsPage() {
   return (
     <>
       {header}
+      {banner}
       {tabs}
       {tab === "incoming" ? (
         incoming.length === 0 ? (

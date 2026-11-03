@@ -9,6 +9,7 @@ import { date, timeAgo } from "@/shared/lib/format";
 import { Avatar, Button, ButtonLink, Card, CardHeader, cx, ErrorState, PageSkeleton, ProductArt, StatusBadge } from "@/shared/ui/primitives";
 import { useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
+import { CashWaitingBanner } from "@/components/cash-waiting";
 import { WishlistCover } from "@/components/wishlist-cover";
 import { shareLink, type Gift as GiftT, type Wishlist } from "@/lib/types";
 
@@ -41,6 +42,7 @@ export default function RecipientHome() {
 
   return (
     <div className="space-y-10">
+      <CashWaitingBanner />
       <section className="flex flex-col items-center text-center">
         <Avatar name={data.user.name} size={104} className="ring-4 ring-gold-300/60" />
         <h1 className="mt-4 font-display text-4xl font-semibold text-plum-900">{data.user.name}</h1>

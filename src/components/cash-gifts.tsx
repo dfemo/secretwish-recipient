@@ -133,7 +133,8 @@ function PayoutAccountCard({ highlight, onSaved }: { highlight: boolean; onSaved
   const save = useMutation(() => api<PayoutAccount>("/recipient/payout-account", { method: "PUT", body: form }));
   const showForm = editing || (!loading && !account);
   return (
-    <Card className={highlight ? "ring-2 ring-gold-400" : undefined}>
+    // While cash is waiting, the card comes first on phones (beside the list on wide screens).
+    <Card className={highlight ? "order-first ring-2 ring-gold-400 lg:order-none" : undefined}>
       <CardHeader title="Where cash gifts go" description="Your account number is encrypted and only the last 4 digits are ever shown." />
       <div className="p-5 pt-0">
         {highlight && <Notice className="mb-4" tone="warning">Someone sent you cash. Add your bank details to receive it.</Notice>}

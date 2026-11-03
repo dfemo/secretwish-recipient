@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Copy, ExternalLink, GripVertical, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Copy, ExternalLink, GripVertical, Heart, Lock, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -15,6 +15,7 @@ import { Badge, Button, Card, cx, ErrorState, Field, Input, Notice, PageSkeleton
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
 import { AddWishesModal } from "@/components/add-wishes";
+import { CloseWishlistModal } from "@/components/close-wishlist";
 import { shareLink, type Wishlist, type WishlistItem } from "@/lib/types";
 
 export default function WishlistDetail() {
@@ -27,6 +28,7 @@ export default function WishlistDetail() {
   const [editItem, setEditItem] = useState<WishlistItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [category, setCategory] = useState("");
   const [order, setOrder] = useState<WishlistItem[]>([]);
   useEffect(() => setOrder(w?.items ?? []), [w]);
@@ -70,11 +72,21 @@ export default function WishlistDetail() {
       <Link href="/wishlists" className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-plum-700">
         <ArrowLeft className="size-4" aria-hidden /> My wishlists
       </Link>
-      {w.closedAt && (
-        <Notice className="mb-5" tone="warning" title="SecretWish closed this wishlist">
-          Since {new Date(w.closedAt).toLocaleDateString()}, nobody can send gifts from it. Contact support if you think this is a mistake.
-        </Notice>
-      )}
+      {w.closedAt &&
+        (w.closure && w.closure.kind !== "Staff" ? (
+          <Notice className="mb-5" tone={w.closure.kind === "Thanks" ? "success" : "info"} icon={Heart} title={`You closed this wishlist on ${date(w.closedAt)}`}>
+            {w.closure.note && <span className="block font-display text-base italic">“{w.closure.note}”</span>}
+            <span className="mt-1 block text-xs">
+              Nobody can send gifts from it any more.
+              {w.visibility !== "Private" && (w.closure.showPublicly ? " Your message shows on the wishlist page." : " Your message isn't shown on the wishlist page.")}
+              {" "}Contact support if you&apos;d like it reopened.
+            </span>
+          </Notice>
+        ) : (
+          <Notice className="mb-5" tone="warning" title="SecretWish closed this wishlist">
+            Since {date(w.closedAt)}, nobody can send gifts from it. Contact support if you think this is a mistake.
+          </Notice>
+        ))}
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -96,6 +108,7 @@ export default function WishlistDetail() {
           {w.description && <p className="mt-2 max-w-2xl text-[15px] text-ink-700">{w.description}</p>}
         </div>
         <div className="flex gap-2">
+          {!w.closedAt && <Button variant="secondary" icon={Lock} onClick={() => setClosing(true)}>Close wishlist</Button>}
           <Button variant="secondary" icon={Settings} onClick={() => setEditing(true)}>Settings</Button>
           <Button variant="ghost" icon={Trash2} onClick={() => setDeleting(true)} aria-label="Delete wishlist" />
         </div>
@@ -126,7 +139,7 @@ export default function WishlistDetail() {
           <h2 className="font-display text-2xl font-semibold text-plum-900">Your wishes</h2>
           <p className="text-xs text-ink-500">{category ? "Show all to reorder." : "Drag to put them in order. Top is what you want most."}</p>
         </div>
-        <Button icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>
+        {!w.closedAt && <Button icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>}
       </div>
 
       {categories.length > 1 && (
@@ -143,7 +156,7 @@ export default function WishlistDetail() {
         <Card className="p-8 text-center">
           <p className="font-display text-xl font-semibold text-plum-900">Your list is empty</p>
           <p className="mt-1 text-sm text-ink-500">Add anything: gifts from SecretWish, things from any shop (paste the link), or cash.</p>
-          <Button className="mt-4" icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>
+          {!w.closedAt && <Button className="mt-4" icon={Plus} onClick={() => setAdding(true)}>Add wishes</Button>}
         </Card>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -180,6 +193,7 @@ export default function WishlistDetail() {
         pending={rotate.pending}
         onConfirm={async () => { await rotate.run(); setRotating(false); toast({ tone: "success", title: "New link created", body: "The previous link no longer works." }); }}
       />
+      <CloseWishlistModal list={w} open={closing} onClose={() => setClosing(false)} onClosed={() => { setClosing(false); reload(); }} />
     </>
   );
 }

@@ -29,8 +29,10 @@ export type Wishlist = {
   visibility: "Private" | "Link" | "Public";
   shareToken: string;
   createdAt: string;
-  /** Set when SecretWish closed the list: nobody can gift from it until it's reopened. */
+  /** Set once the list is closed (by its owner, for good, or by SecretWish): nobody can gift from it. */
   closedAt?: string | null;
+  /** Thanks / NoLongerNeeded when the owner closed it (with their message), Staff when SecretWish did. */
+  closure?: { kind: "Thanks" | "NoLongerNeeded" | "Staff"; note: string | null; showPublicly: boolean } | null;
   /** Gifts received (orders and cash, including cash for the list as a whole). */
   gifts?: number | null;
   cashGifts?: number | null;

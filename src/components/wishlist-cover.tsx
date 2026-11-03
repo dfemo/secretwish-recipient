@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ProductArt, StatusBadge } from "@/shared/ui/primitives";
+import { Badge, ProductArt, StatusBadge } from "@/shared/ui/primitives";
 import type { Wishlist } from "@/lib/types";
 
 /** Collage cover inspired by a gift board: one hero item and two supporting items. */
@@ -23,7 +23,7 @@ export function WishlistCover({ w }: { w: Wishlist }) {
             {!!w.cashGifts && ` (${w.cashGifts} cash)`}
           </p>
         </div>
-        <StatusBadge status={w.visibility} />
+        {w.closedAt ? <Badge tone="neutral">Closed</Badge> : <StatusBadge status={w.visibility} />}
       </div>
     </Link>
   );

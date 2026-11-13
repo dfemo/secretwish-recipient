@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSession } from "@/shared/lib/session";
 import { Globe2, Link2, Lock } from "lucide-react";
-import { api, ApiError, useMutation } from "@/shared/lib/api";
+import { api, ApiError, useApi, useMutation } from "@/shared/lib/api";
+import { date } from "@/shared/lib/format";
 import { Button, cx, Field, Input, Notice, Select, Switch, Textarea } from "@/shared/ui/primitives";
 import { Modal, useToast } from "@/shared/ui/overlay";
-import type { Wishlist } from "@/lib/types";
+import type { Allowance, Wishlist } from "@/lib/types";
 
 export const visibilityOptions = [
   { v: "Private", icon: Lock, title: "Private", body: "Only you can see it." },
@@ -22,6 +23,10 @@ export function WishlistForm({ open, onClose, existing, onSaved }: { open: boole
   const { currency, meta } = useSession();
   const [f, setF] = useState({ title: "", description: "", occasion: "", eventDate: "", visibility: "Private", confirmPublic: false, currency, deliverViaHub: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // How many lists are left this month/year and whether a birthday list is still possible.
+  const allowance = useApi<Allowance>(open ? "/recipient/wishlist-allowance" : null).data;
+  const birthday = f.occasion === "Birthday";
+  const blocked = existing ? (birthday && !existing.isBirthday ? allowance?.birthdayBlocked : null) : birthday ? allowance?.birthdayBlocked : allowance?.blocked;
   useEffect(() => {
     if (!open) return;
     setErrors({});
@@ -64,11 +69,18 @@ export function WishlistForm({ open, onClose, existing, onSaved }: { open: boole
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button loading={save.pending} onClick={submit}>{existing ? "Save changes" : "Create wishlist"}</Button>
+          <Button loading={save.pending} disabled={!!blocked} onClick={submit}>{existing ? "Save changes" : "Create wishlist"}</Button>
         </>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
+        {!existing && allowance && !blocked && (
+          <p className="text-xs text-ink-500 sm:col-span-2">
+            {allowance.monthlyLeft} of {allowance.monthlyLimit} new wishlist{allowance.monthlyLimit === 1 ? "" : "s"} left this month on the {allowance.plan} plan
+            {allowance.yearlyLimit != null && ` · ${allowance.yearlyLeft} of ${allowance.yearlyLimit} this year until you send a gift`}.
+          </p>
+        )}
+        {blocked && <Notice tone="warning" className="sm:col-span-2">{blocked}</Notice>}
         <Field label="Title" required className="sm:col-span-2" error={errors.title}>
           {(id, d) => <Input id={id} aria-describedby={d} aria-invalid={!!errors.title} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="My 30th birthday" />}
         </Field>
@@ -86,13 +98,19 @@ export function WishlistForm({ open, onClose, existing, onSaved }: { open: boole
         </Field>
         <Field label="Occasion">
           {(id) => (
-            <Select id={id} value={f.occasion} onChange={(e) => setF({ ...f, occasion: e.target.value })}>
+            <Select id={id} value={f.occasion} disabled={existing?.isBirthday} onChange={(e) => setF({ ...f, occasion: e.target.value })}>
               <option value="">No occasion</option>
               {occasions.map((o) => (<option key={o}>{o}</option>))}
             </Select>
           )}
         </Field>
-        <Field label="Date">{(id) => <Input id={id} type="date" value={f.eventDate} onChange={(e) => setF({ ...f, eventDate: e.target.value })} />}</Field>
+        {birthday ? (
+          <Field label="Date" hint="Birthday lists are dated for your birthday. One a year, until your birthday has passed.">
+            {(id, d) => <Input id={id} aria-describedby={d} value={existing?.eventDate ? date(existing.eventDate) : allowance?.birthday ? date(allowance.birthday) : "Your birthday"} disabled readOnly />}
+          </Field>
+        ) : (
+          <Field label="Date">{(id) => <Input id={id} type="date" value={f.eventDate} onChange={(e) => setF({ ...f, eventDate: e.target.value })} />}</Field>
+        )}
         <fieldset className="sm:col-span-2">
           <legend className="mb-2 text-[13px] font-semibold text-ink-700">Who can see it?</legend>
           <div className="grid gap-2 sm:grid-cols-3">

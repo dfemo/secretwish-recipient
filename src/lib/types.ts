@@ -15,6 +15,16 @@ export type WishlistItem = {
   imageUrl: string | null;
   estimatedPriceUsd: number | null;
   cashAmountUsd: number | null;
+  /** One sender per wish. status: Open → Claimed (someone is gifting it) → SenderCompleted (they say it's done; confirm it) →
+   * RecipientConfirmed (waiting for SecretWish) → Confirmed (fulfilled). You never see who the sender is. */
+  claim?: {
+    state: "Open" | "Taken" | "Fulfilled";
+    status: "Open" | "Claimed" | "SenderCompleted" | "RecipientConfirmed" | "Confirmed" | null;
+    stage: string | null;
+    completedAt: string | null;
+    recipientConfirmedAt: string | null;
+    confirmedAt: string | null;
+  };
   product: { id: string; name: string; priceUsd: number; emoji: string; tint: string; image?: string | null; vendor: string; availability: string } | null;
 };
 
@@ -29,6 +39,10 @@ export type Wishlist = {
   visibility: "Private" | "Link" | "Public";
   shareToken: string;
   createdAt: string;
+  /** A birthday list: one a year, dated for your birthday. */
+  isBirthday?: boolean;
+  /** Paused by SecretWish: nobody can gift from it. */
+  blacklisted?: boolean;
   /** The owner asked SecretWish to deliver their gifts; viaHub is whether it does (also when gifts come from several vendors). */
   deliverViaHub?: boolean;
   viaHub?: boolean;
@@ -54,6 +68,12 @@ export type Gift = {
   message: string | null;
   canVerify: boolean;
   events: { at: string; title: string; detail: string }[];
+};
+
+/** What you can still create (see the API's WishlistRules). blocked/birthdayBlocked say why not, or are null. */
+export type Allowance = {
+  plan: string; paid: boolean; thisMonth: number; monthlyLimit: number; monthlyLeft: number; thisYear: number; yearlyLimit: number | null; yearlyLeft: number | null;
+  sentThisYear: boolean; hasDateOfBirth: boolean; birthday: string | null; canCreateBirthday: boolean; blocked: string | null; birthdayBlocked: string | null;
 };
 
 export const SENDER_URL = process.env.NEXT_PUBLIC_SENDER_URL ?? "http://localhost:3002";

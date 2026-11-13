@@ -93,6 +93,8 @@ export default function WishlistDetail() {
             <h1 className="font-display text-4xl font-semibold text-plum-900">{w.title}</h1>
             <StatusBadge status={w.visibility} />
             {w.viaHub && <Badge tone="info">To be delivered by a SecretWish agent</Badge>}
+            {w.isBirthday && <Badge tone="gold" icon={CalendarHeart}>Birthday list</Badge>}
+            {w.blacklisted && <Badge tone="danger">Paused by SecretWish</Badge>}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-ink-500">
             {w.occasion && (
@@ -114,6 +116,17 @@ export default function WishlistDetail() {
           <Button variant="ghost" icon={Trash2} onClick={() => setDeleting(true)} aria-label="Delete wishlist" />
         </div>
       </header>
+
+      {w.blacklisted && (
+        <Notice tone="danger" className="mb-6" title="Gifting is paused on this list">
+          SecretWish has paused this wishlist, so nobody can gift from it right now. Contact support if you think this is a mistake.
+        </Notice>
+      )}
+      {w.items.some((i) => i.claim?.status === "SenderCompleted") && (
+        <Notice tone="info" className="mb-6" title="Did your wishes arrive?">
+          Someone says they&apos;ve fulfilled {w.items.filter((i) => i.claim?.status === "SenderCompleted").length === 1 ? "a wish" : "some wishes"} on this list. Confirm each one below once you have it.
+        </Notice>
+      )}
 
       <Card className="mb-8 p-5">
         {w.visibility === "Private" ? (
@@ -231,6 +244,9 @@ function SortableWish({ item: i, currency, rank, total, sortable, onEdit, onMove
           <p className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-sm font-semibold">{i.name}</span>
             {i.fulfilled && <Badge tone="success" icon={CheckCircle2}>Gifted</Badge>}
+            {!i.fulfilled && i.claim?.status && i.claim.status !== "Open" && (
+              <Badge tone={i.claim.status === "SenderCompleted" ? "warning" : "plum"}>{i.claim.stage}</Badge>
+            )}
             {i.kind === "Cash" && !i.fulfilled && <Badge tone="gold">Cash</Badge>}
             {i.product && i.product.availability !== "In stock" && !i.fulfilled && <Badge tone="warning">{i.product.availability}</Badge>}
           </p>
@@ -240,6 +256,7 @@ function SortableWish({ item: i, currency, rank, total, sortable, onEdit, onMove
             {i.quantity > 1 && ` · ×${i.quantity}`}
           </p>
           {i.notes && <p className="mt-0.5 line-clamp-1 text-xs text-ink-700 italic">“{i.notes}”</p>}
+          {i.claim?.status === "SenderCompleted" && <ConfirmReceived item={i} />}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {price != null && <b className="text-sm tabular">{i.kind === "Custom" ? "~" : ""}{fmt(price)}</b>}
@@ -329,5 +346,23 @@ function EditItemModal({ item, currency, onClose }: { item: WishlistItem; curren
         {(save.error ?? remove.error) && <Notice tone="danger" className="sm:col-span-2">{(save.error ?? remove.error)!.message}</Notice>}
       </div>
     </Modal>
+  );
+}
+
+/** The owner answers "I've fulfilled this wish" from a sender: yes sends it to SecretWish to confirm; not yet hands it back to the sender. */
+function ConfirmReceived({ item }: { item: WishlistItem }) {
+  const toast = useToast();
+  const respond = useMutation((accept: boolean) => api(`/recipient/items/${item.id}/received`, { method: "POST", body: { accept } }));
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="text-xs text-ink-700">Someone says they&apos;ve fulfilled this. Did you get it?</span>
+      <Button size="sm" icon={CheckCircle2} loading={respond.pending} onClick={async () => {
+        if ((await respond.run(true)) !== undefined) toast({ tone: "success", title: "Thanks for confirming", body: "SecretWish will confirm it shortly." });
+      }}>Yes, I got it</Button>
+      <Button size="sm" variant="ghost" disabled={respond.pending} onClick={async () => {
+        if ((await respond.run(false)) !== undefined) toast({ tone: "info", title: "We've let them know", body: "They keep the wish and can mark it completed again once it arrives." });
+      }}>Not yet</Button>
+      {respond.error && <p role="alert" className="w-full text-xs text-danger-700">{respond.error.message}</p>}
+    </div>
   );
 }

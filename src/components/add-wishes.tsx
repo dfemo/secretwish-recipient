@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BankDetailsModal, type PayoutAccount } from "./bank-details";
 import { Banknote, Gift, Link2, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { api, ApiError, useApi, useMutation, type Paged } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
@@ -44,6 +45,8 @@ export function AddWishesModal({ wishlistId, currency, existingProductIds, onClo
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
+  // After adding a cash wish, ask where to send the money if we don't know yet.
+  const [askBank, setAskBank] = useState(false);
   const focusKey = useRef<number | null>(null);
   const fx = rate(currency);
   const symbol = currencySymbol(currency);
@@ -101,6 +104,13 @@ export function AddWishesModal({ wishlistId, currency, existingProductIds, onClo
     const created = await save.run();
     if (created) {
       toast({ tone: "success", title: `${created.length} wish${created.length === 1 ? "" : "es"} added` });
+      if (filled.some((r) => r.kind === "Cash")) {
+        const account = await api<PayoutAccount>("/recipient/payout-account").catch(() => undefined);
+        if (account === null) {
+          setAskBank(true);
+          return;
+        }
+      }
       onClose();
       return;
     }
@@ -118,6 +128,8 @@ export function AddWishesModal({ wishlistId, currency, existingProductIds, onClo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [save.error]);
 
+  if (askBank)
+    return <BankDetailsModal onClose={onClose} reason="You've added a cash wish. Tell us where to send the money so gifters' cash reaches you without delay." />;
   return (
     <Modal
       open

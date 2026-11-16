@@ -6,15 +6,15 @@ import { Banknote, CheckCircle2, Heart, Landmark } from "lucide-react";
 import { api, useApi, useMutation, usePagedApi } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
 import { date } from "@/shared/lib/format";
-import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, Input, Notice, Spinner, Textarea } from "@/shared/ui/primitives";
+import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, Notice, Spinner, Textarea } from "@/shared/ui/primitives";
 import { PagedFooter } from "@/shared/ui/data";
 import { Modal, useToast } from "@/shared/ui/overlay";
+import { BankDetailsForm, type PayoutAccount } from "./bank-details";
 
 type CashGift = {
   id: string; reference: string; amountUsd: number; message: string; status: string; createdAt: string; paidOutAt: string | null; from: string;
   receivedAt: string | null; thankYouNote: string | null; canConfirm: boolean;
 };
-type PayoutAccount = { bankName: string; accountName: string; accountNumber: string; updatedAt: string } | null;
 
 const statusLabel: Record<string, { label: string; tone: "success" | "warning" | "plum" }> = {
   Paid: { label: "Paid", tone: "plum" },
@@ -128,9 +128,6 @@ function ConfirmReceipt({ gift, onClose, onDone }: { gift: CashGift | null; onCl
 function PayoutAccountCard({ highlight, onSaved }: { highlight: boolean; onSaved: () => void }) {
   const { data: account, loading, reload } = useApi<PayoutAccount>("/recipient/payout-account");
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
-  const toast = useToast();
-  const save = useMutation(() => api<PayoutAccount>("/recipient/payout-account", { method: "PUT", body: form }));
   const showForm = editing || (!loading && !account);
   return (
     // While cash is waiting, the card comes first on phones (beside the list on wide screens).
@@ -150,28 +147,10 @@ function PayoutAccountCard({ highlight, onSaved }: { highlight: boolean; onSaved
           </div>
         )}
         {showForm && (
-          <form
-            className="grid gap-3"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await save.run()) {
-                toast({ tone: "success", title: "Bank details saved" });
-                setEditing(false);
-                setForm({ bankName: "", accountName: "", accountNumber: "" });
-                reload();
-                onSaved();
-              }
-            }}
-          >
-            <Field label="Bank">{(id) => <Input id={id} required maxLength={80} value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="e.g. GTBank" />}</Field>
-            <Field label="Name on the account">{(id) => <Input id={id} required maxLength={120} autoComplete="name" value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} />}</Field>
-            <Field label="Account number" hint="Nigerian accounts (NUBAN) have 10 digits.">{(id, d) => <Input id={id} aria-describedby={d} required inputMode="numeric" autoComplete="off" value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} />}</Field>
-            {save.error && <Notice tone="danger">{save.error.message}</Notice>}
-            <div className="flex gap-2">
-              <Button type="submit" loading={save.pending}>Save bank details</Button>
-              {account && <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>}
-            </div>
-          </form>
+          <BankDetailsForm
+            onSaved={() => { setEditing(false); reload(); onSaved(); }}
+            onCancel={account ? () => setEditing(false) : undefined}
+          />
         )}
       </div>
     </Card>

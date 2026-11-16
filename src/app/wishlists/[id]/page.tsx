@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Compass, Copy, ExternalLink, GripVertical, Heart, Lock, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarHeart, CheckCircle2, Compass, Copy, ExternalLink, GripVertical, Heart, Landmark, Lock, Pencil, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -15,6 +15,7 @@ import { Badge, Button, ButtonLink, Card, cx, ErrorState, Field, Input, Notice, 
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
 import { AddWishesModal } from "@/components/add-wishes";
+import { BankDetailsModal, usePayoutAccount } from "@/components/bank-details";
 import { CloseWishlistModal } from "@/components/close-wishlist";
 import { shareLink, type Wishlist, type WishlistItem } from "@/lib/types";
 
@@ -25,6 +26,9 @@ export default function WishlistDetail() {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  // A cash wish needs somewhere to send the money: remind them until they add bank details.
+  const payout = usePayoutAccount();
+  const [askBank, setAskBank] = useState(false);
   const [editItem, setEditItem] = useState<WishlistItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [rotating, setRotating] = useState(false);
@@ -161,6 +165,13 @@ export default function WishlistDetail() {
         )}
       </div>
 
+      {payout.hasAccount === false && order.some((i) => i.kind === "Cash" && !i.fulfilled) && (
+        <Notice className="mb-4" tone="warning" icon={Landmark} title="Add your bank details for your cash wish">
+          <span className="block">So SecretWish can pay what gifters send straight into your account.</span>
+          <Button size="sm" className="mt-2" onClick={() => setAskBank(true)}>Add bank details</Button>
+        </Notice>
+      )}
+
       {categories.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
           {["", ...categories].map((c) => (
@@ -190,7 +201,8 @@ export default function WishlistDetail() {
       )}
 
       <WishlistForm open={editing} onClose={() => setEditing(false)} existing={w} />
-      {adding && <AddWishesModal currency={w.currency ?? "USD"} wishlistId={w.id} existingProductIds={order.filter((i) => i.product).map((i) => i.product!.id)} onClose={() => setAdding(false)} />}
+      {adding && <AddWishesModal currency={w.currency ?? "USD"} wishlistId={w.id} existingProductIds={order.filter((i) => i.product).map((i) => i.product!.id)} onClose={() => { setAdding(false); payout.reload(); }} />}
+      {askBank && <BankDetailsModal onClose={() => { setAskBank(false); payout.reload(); }} />}
       {editItem && <EditItemModal currency={w.currency ?? "USD"} item={editItem} onClose={() => setEditItem(null)} />}
       <ConfirmDialog
         open={deleting}

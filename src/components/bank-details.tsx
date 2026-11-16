@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Landmark } from "lucide-react";
 import { api, useApi, useMutation } from "@/shared/lib/api";
+import { useSession } from "@/shared/lib/session";
 import { Button, Field, Input, Notice } from "@/shared/ui/primitives";
 import { Modal, useToast } from "@/shared/ui/overlay";
 
@@ -55,5 +57,34 @@ export function BankDetailsModal({ onClose, reason }: { onClose: () => void; rea
       </div>
       <BankDetailsForm onSaved={onClose} onCancel={onClose} cancelLabel="Later" />
     </Modal>
+  );
+}
+
+/**
+ * After signing in, reminds a recipient with no bank details to add them, so cash gifts can be paid without delay. Shown once per
+ * browser session (Later hides it until they next sign in), never in demo mode, and not on the Gifts page, which has the form.
+ */
+export function BankDetailsReminder() {
+  const { profile, isDemo } = useSession();
+  const pathname = usePathname();
+  const { hasAccount, reload } = usePayoutAccount();
+  const [open, setOpen] = useState(false);
+  const key = profile ? `secretwish.recipient.bankReminder.${profile.id}` : null;
+  useEffect(() => {
+    if (!key || isDemo || hasAccount !== false || pathname.startsWith("/gifts")) return;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "shown");
+    } catch {
+      /* storage unavailable: show it this once */
+    }
+    setOpen(true);
+  }, [key, isDemo, hasAccount, pathname]);
+  if (!open) return null;
+  return (
+    <BankDetailsModal
+      reason="Add your bank details now so any cash gift people send you can be paid straight into your account."
+      onClose={() => { setOpen(false); reload(); }}
+    />
   );
 }

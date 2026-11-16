@@ -5,6 +5,7 @@ import { Compass, Gift, Home, ListChecks, ShieldCheck, Trophy } from "lucide-rea
 import { SessionProvider } from "@/shared/lib/session";
 import { ConsumerShell, type NavItem } from "@/shared/layout/shell";
 import { ToastProvider } from "@/shared/ui/overlay";
+import { BankDetailsReminder } from "@/components/bank-details";
 
 const items: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
@@ -31,6 +32,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       >
         <ConsumerShell items={items} tagline="Wishlists">
           {children}
+          <BankDetailsReminder />
         </ConsumerShell>
       </SessionProvider>
     </ToastProvider>

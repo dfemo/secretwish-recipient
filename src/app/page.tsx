@@ -6,7 +6,7 @@ import { ArrowRight, Copy, Gift, Lock, Plus, ShieldCheck } from "lucide-react";
 import { useApi } from "@/shared/lib/api";
 import { useSession } from "@/shared/lib/session";
 import { date, timeAgo } from "@/shared/lib/format";
-import { Avatar, Button, ButtonLink, Card, CardHeader, cx, ErrorState, PageSkeleton, ProductArt, StatusBadge } from "@/shared/ui/primitives";
+import { Avatar, Button, ButtonLink, Card, CardHeader, cx, ErrorState, PageSkeleton, ProductArt, StatusBadge, useGreeting } from "@/shared/ui/primitives";
 import { useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
 import { CashWaitingBanner } from "@/components/cash-waiting";
@@ -26,7 +26,8 @@ export default function RecipientHome() {
   const { data, error, loading, reload } = useApi<Home>("/recipient/home");
   const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState<"lists" | "gifts">("lists");
-  const { fmt } = useSession();
+  const { fmt, persona } = useSession();
+  const { greeting, today } = useGreeting(persona.name);
   const toast = useToast();
   if (loading) return <PageSkeleton />;
   if (error || !data) return <ErrorState error={error} onRetry={reload} />;
@@ -46,7 +47,8 @@ export default function RecipientHome() {
       <CashWaitingBanner />
       <section className="flex flex-col items-center text-center">
         <Avatar name={data.user.name} size={104} className="ring-4 ring-gold-300/60" />
-        <h1 className="mt-4 font-display text-4xl font-semibold text-plum-900">{data.user.name}</h1>
+        {today && <p className="mt-4 text-xs font-medium text-ink-500">{today}</p>}
+        <h1 className={cx("font-display text-4xl font-semibold tracking-tight text-plum-900", !today && "mt-4")}>{greeting}</h1>
         <p className="text-sm text-ink-500">{data.user.city} · {data.stats.wishlists} wishlists · {data.stats.received} gift{data.stats.received === 1 ? "" : "s"} received{data.stats.cashReceived > 0 && ` (${data.stats.cashReceived} cash)`}{data.stats.gifted > 0 && ` · ${data.stats.gifted} wish${data.stats.gifted === 1 ? "" : "es"} come true`}</p>
         <div className="mt-5 inline-flex rounded-2xl bg-white p-1 shadow-[var(--shadow-card)]" role="tablist">
           {(["lists", "gifts"] as const).map((t) => (

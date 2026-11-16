@@ -247,6 +247,7 @@ function SortableWish({ item: i, currency, rank, total, sortable, onEdit, onMove
             {!i.fulfilled && i.claim?.status && i.claim.status !== "Open" && (
               <Badge tone={i.claim.status === "SenderCompleted" ? "warning" : "plum"}>{i.claim.stage}</Badge>
             )}
+            {!i.fulfilled && i.partial && (!i.claim?.status || i.claim.status === "Open") && <Badge tone="gold">Partly fulfilled</Badge>}
             {i.kind === "Cash" && !i.fulfilled && <Badge tone="gold">Cash</Badge>}
             {i.product && i.product.availability !== "In stock" && !i.fulfilled && <Badge tone="warning">{i.product.availability}</Badge>}
           </p>
@@ -256,6 +257,11 @@ function SortableWish({ item: i, currency, rank, total, sortable, onEdit, onMove
             {i.quantity > 1 && ` · ×${i.quantity}`}
           </p>
           {i.notes && <p className="mt-0.5 line-clamp-1 text-xs text-ink-700 italic">“{i.notes}”</p>}
+          {i.kind === "Cash" && !i.fulfilled && (i.cashRaisedUsd ?? 0) > 0 && (
+            <p className="mt-0.5 text-xs text-ink-500">
+              {fmt(i.cashRaisedUsd ?? 0)} received{i.cashRemainingUsd ? <> · <span className="font-semibold text-ink-700">{fmt(i.cashRemainingUsd)} to go</span></> : ""}
+            </p>
+          )}
           {i.claim?.status === "SenderCompleted" && <ConfirmReceived item={i} />}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

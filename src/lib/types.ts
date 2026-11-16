@@ -15,6 +15,10 @@ export type WishlistItem = {
   imageUrl: string | null;
   estimatedPriceUsd: number | null;
   cashAmountUsd: number | null;
+  /** Cash wishes: how much people have sent so far and what's still to come (several people can share one). */
+  cashRaisedUsd?: number | null;
+  cashRemainingUsd?: number | null;
+  partial?: boolean;
   /** One sender per wish. status: Open → Claimed (someone is gifting it) → SenderCompleted (they say it's done; confirm it) →
    * RecipientConfirmed (waiting for SecretWish) → Confirmed (fulfilled). You never see who the sender is. */
   claim?: {

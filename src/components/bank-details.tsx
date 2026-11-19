@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Landmark } from "lucide-react";
-import { api, useApi, useMutation } from "@/shared/lib/api";
+import { useApi } from "@/shared/lib/api";
+import { BankAccountForm } from "@/shared/ui/bank-account";
 import { useSession } from "@/shared/lib/session";
-import { Button, Field, Input, Notice } from "@/shared/ui/primitives";
-import { Modal, useToast } from "@/shared/ui/overlay";
+import { Modal } from "@/shared/ui/overlay";
 
-export type PayoutAccount = { bankName: string; accountName: string; accountNumber: string; updatedAt: string } | null;
+export type PayoutAccount = { bankName: string; accountName: string; accountNumber: string; updatedAt: string; bankCode?: string | null; verified?: boolean; needsBankCode?: boolean } | null;
 
 /** Whether this recipient has told SecretWish where to send cash gifts. undefined while loading. */
 export function usePayoutAccount() {
@@ -16,35 +16,10 @@ export function usePayoutAccount() {
   return { account: data, hasAccount: loading ? undefined : !!data, reload };
 }
 
-/** Bank, account name and number. The number is encrypted by the API and only its last 4 digits are ever shown again. */
+/** Bank details for cash gifts. With a payout engine set up, the bank is picked from a list and the account name is confirmed with the
+ * bank; people outside Nigeria can use Stripe instead. The number is encrypted and only its last 4 digits are ever shown again. */
 export function BankDetailsForm({ onSaved, onCancel, submitLabel = "Save bank details", cancelLabel = "Cancel" }: { onSaved: () => void; onCancel?: () => void; submitLabel?: string; cancelLabel?: string }) {
-  const [form, setForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
-  const toast = useToast();
-  const save = useMutation(() => api<PayoutAccount>("/recipient/payout-account", { method: "PUT", body: form }));
-  return (
-    <form
-      className="grid gap-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (await save.run()) {
-          toast({ tone: "success", title: "Bank details saved", body: "Cash gifts will be sent to this account." });
-          setForm({ bankName: "", accountName: "", accountNumber: "" });
-          onSaved();
-        }
-      }}
-    >
-      <Field label="Bank">{(id) => <Input id={id} required maxLength={80} value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="e.g. GTBank" />}</Field>
-      <Field label="Name on the account">{(id) => <Input id={id} required maxLength={120} autoComplete="name" value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} />}</Field>
-      <Field label="Account number" hint="Nigerian accounts (NUBAN) have 10 digits.">
-        {(id, d) => <Input id={id} aria-describedby={d} required inputMode="numeric" autoComplete="off" value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} />}
-      </Field>
-      {save.error && <Notice tone="danger">{save.error.message}</Notice>}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" loading={save.pending}>{submitLabel}</Button>
-        {onCancel && <Button variant="ghost" onClick={onCancel}>{cancelLabel}</Button>}
-      </div>
-    </form>
-  );
+  return <BankAccountForm endpoint="/recipient/payout-account" connectFor="me" onSaved={onSaved} onCancel={onCancel} submitLabel={submitLabel} cancelLabel={cancelLabel} />;
 }
 
 /** Asks for bank details right when they're needed, e.g. just after adding a cash wish, so gifters' money can reach the recipient. */

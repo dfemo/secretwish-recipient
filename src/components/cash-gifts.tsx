@@ -128,6 +128,9 @@ function ConfirmReceipt({ gift, onClose, onDone }: { gift: CashGift | null; onCl
 function PayoutAccountCard({ highlight, onSaved }: { highlight: boolean; onSaved: () => void }) {
   const { data: account, loading, reload } = useApi<PayoutAccount>("/recipient/payout-account");
   const [editing, setEditing] = useState(false);
+  // Details typed in before bank checks existed need the bank picked from the list once, so money can be sent to them.
+  const { data: banks } = useApi<{ engine: string | null }>("/payments/banks?country=NG");
+  const needsBank = !!account?.needsBankCode && !!banks?.engine;
   const showForm = editing || (!loading && !account);
   return (
     // While cash is waiting, the card comes first on phones (beside the list on wide screens).
@@ -136,12 +139,13 @@ function PayoutAccountCard({ highlight, onSaved }: { highlight: boolean; onSaved
       <div className="p-5 pt-0">
         {highlight && <Notice className="mb-4" tone="warning">Someone sent you cash. Add your bank details to receive it.</Notice>}
         {loading && <Spinner />}
+        {needsBank && !editing && <Notice className="mb-4" tone="warning">Please choose your bank again from the list so we can send money to this account.</Notice>}
         {account && !editing && (
           <div className="flex items-center gap-3">
             <Landmark className="size-6 text-plum-700" aria-hidden />
             <div className="flex-1">
               <p className="font-semibold">{account.bankName} {account.accountNumber}</p>
-              <p className="text-xs text-ink-500">{account.accountName}</p>
+              <p className="text-xs text-ink-500">{account.accountName}{account.verified ? " · confirmed by your bank" : ""}</p>
             </div>
             <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>Change</Button>
           </div>

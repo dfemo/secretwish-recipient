@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { WishPhotoPicker } from "./wish-photo";
 import { BankDetailsModal, type PayoutAccount } from "./bank-details";
 import { Banknote, Gift, Link2, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { api, ApiError, useApi, useMutation, type Paged } from "@/shared/lib/api";
@@ -17,6 +18,8 @@ type Row = {
   title: string;
   url: string;
   imageUrl: string;
+  /** The picture is the recipient's own upload rather than one found from the link. */
+  photoUploaded?: boolean;
   price: string;
   amount: string;
   categoryId: string;
@@ -194,14 +197,14 @@ export function AddWishesModal({ wishlistId, currency, existingProductIds, onClo
                   <Link2 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-400" aria-hidden />
                   <Input aria-label="Link to the item, optional" placeholder="Link to it (optional), e.g. https://www.zara.com/…" className="pl-9" inputMode="url" value={r.url} onChange={(e) => update(r.key, { url: e.target.value })} onBlur={(e) => preview(r.key, e.target.value)} />
                 </div>
-                {(r.previewing || r.imageUrl) && (
-                  <div className="flex items-center gap-2 text-xs text-ink-500 sm:col-span-2">
-                    {r.previewing ? <><Spinner label="" /> Looking up the link…</> : <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.imageUrl} alt="" className="size-10 rounded-lg object-cover" referrerPolicy="no-referrer" /> Picture from the link
-                    </>}
-                  </div>
-                )}
+                <div className="sm:col-span-2">
+                  {r.previewing ? (
+                    <p className="flex items-center gap-2 text-xs text-ink-500"><Spinner label="" /> Looking up the link…</p>
+                  ) : (
+                    // One picture per wish: upload a photo, or keep the one found from the link.
+                    <WishPhotoPicker value={r.imageUrl} fromLink={!!r.url && !r.photoUploaded} onChange={(url) => update(r.key, { imageUrl: url, photoUploaded: !!url })} />
+                  )}
+                </div>
                 <Select aria-label="Category, helps vendors find it" value={r.categoryId} onChange={(e) => update(r.key, { categoryId: e.target.value })}>
                   <option value="">Category (optional)</option>
                   {meta?.categories.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}

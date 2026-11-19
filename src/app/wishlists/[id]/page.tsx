@@ -15,6 +15,7 @@ import { Badge, Button, ButtonLink, Card, cx, ErrorState, Field, Input, Notice, 
 import { ConfirmDialog, Modal, useToast } from "@/shared/ui/overlay";
 import { WishlistForm } from "@/components/wishlist-form";
 import { AddWishesModal } from "@/components/add-wishes";
+import { WishPhotoPicker } from "@/components/wish-photo";
 import { BankDetailsModal, usePayoutAccount } from "@/components/bank-details";
 import { CloseWishlistModal } from "@/components/close-wishlist";
 import { shareLink, type Wishlist, type WishlistItem } from "@/lib/types";
@@ -308,6 +309,7 @@ function EditItemModal({ item, currency, onClose }: { item: WishlistItem; curren
   const [form, setForm] = useState({
     notes: item.notes, quantity: item.quantity, category: item.category, categoryId: item.categoryId ?? "",
     title: item.kind === "Custom" ? item.name : "", url: item.url ?? "", price: shown(item.estimatedPriceUsd), amount: shown(item.cashAmountUsd),
+    imageUrl: item.imageUrl ?? "",
   });
   const toast = useToast();
   const save = useMutation(() =>
@@ -315,7 +317,7 @@ function EditItemModal({ item, currency, onClose }: { item: WishlistItem; curren
       method: "PUT",
       body: {
         notes: form.notes, quantity: form.quantity, category: form.category, categoryId: form.categoryId || null,
-        title: form.title, url: form.url || null, imageUrl: item.imageUrl, estimatedPriceUsd: toUsd(form.price), cashAmountUsd: toUsd(form.amount),
+        title: form.title, url: form.url || null, imageUrl: form.imageUrl || null, estimatedPriceUsd: toUsd(form.price), cashAmountUsd: toUsd(form.amount),
       },
     }),
   );
@@ -338,6 +340,10 @@ function EditItemModal({ item, currency, onClose }: { item: WishlistItem; curren
           <>
             <Field label="What would you like?" className="sm:col-span-2">{(id) => <Input id={id} maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}</Field>
             <Field label="Link (optional)" className="sm:col-span-2">{(id) => <Input id={id} inputMode="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://…" />}</Field>
+            <div className="sm:col-span-2">
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-700">Photo (optional)</p>
+              <WishPhotoPicker value={form.imageUrl} onChange={(url) => setForm({ ...form, imageUrl: url })} />
+            </div>
             <Field label={`Rough price (${symbol})`}>{(id) => <Input id={id} inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^\d.]/g, "") })} />}</Field>
             <Field label="Category">
               {(id) => (
